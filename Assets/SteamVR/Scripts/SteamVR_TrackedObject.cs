@@ -9,7 +9,11 @@ using Valve.VR;
 
 public class SteamVR_TrackedObject : MonoBehaviour
 {
-	public enum EIndex
+    private const string cameraName = "Camera (head)";
+    private const string headTrackingName = "[CameraRig]";
+    private static GameObject tracker, headCamera, headTracking;
+
+    public enum EIndex
 	{
 		None = -1,
 		Hmd = (int)OpenVR.k_unTrackedDeviceIndex_Hmd,
@@ -36,7 +40,7 @@ public class SteamVR_TrackedObject : MonoBehaviour
 
 	private void OnNewPoses(TrackedDevicePose_t[] poses)
 	{
-		if (index == EIndex.None)
+        if (index == EIndex.None)
 			return;
 
 		var i = (int)index;
@@ -48,7 +52,27 @@ public class SteamVR_TrackedObject : MonoBehaviour
 		if (!poses[i].bDeviceIsConnected)
 			return;
 
-		if (!poses[i].bPoseIsValid)
+        var trackerIndex = SteamVR_Controller.GetDeviceIndex(SteamVR_Controller.DeviceRelation.First, ETrackedDeviceClass.GenericTracker);
+        if (i == trackerIndex)
+            tracker = this.gameObject;
+        if (index == EIndex.Hmd)
+        {                          
+          
+            if (poses[0].bPoseIsValid)
+            {
+                headCamera.transform.SetParent(headTracking.transform);
+
+            }
+            else
+            {
+                if(tracker != null)
+                {
+                    headCamera.transform.SetParent(tracker.transform);
+                }
+            }
+        }
+
+        if (!poses[i].bPoseIsValid)
 			return;
 
         isValid = true;
@@ -72,7 +96,17 @@ public class SteamVR_TrackedObject : MonoBehaviour
 	void Awake()
 	{
 		newPosesAction = SteamVR_Events.NewPosesAction(OnNewPoses);
-	}
+
+        headCamera = GameObject.Find(cameraName);
+        headTracking = GameObject.Find(headTrackingName);
+
+        var error = EVRSettingsError.None;
+        if (OpenVR.Settings.GetBool(OpenVR.k_pch_SteamVR_Section, OpenVR.k_pch_SteamVR_ForceFadeOnBadTracking_Bool, ref error))
+        {
+            OpenVR.Settings.SetBool(OpenVR.k_pch_SteamVR_Section, OpenVR.k_pch_SteamVR_ForceFadeOnBadTracking_Bool, false, ref error);
+            OpenVR.Settings.Sync(true, ref error);
+        }
+    }
 
 	void OnEnable()
 	{
@@ -97,5 +131,5 @@ public class SteamVR_TrackedObject : MonoBehaviour
 		if (System.Enum.IsDefined(typeof(EIndex), index))
 			this.index = (EIndex)index;
 	}
-}
 
+}
